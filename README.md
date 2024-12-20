@@ -81,7 +81,7 @@ To run the application, ensure you have the following:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-repo/quizzy.git
+   git clone https://github.com/KavanBrahmbhatt0910/Quizzy.git
    cd quizzy
    ```
 
@@ -117,3 +117,10 @@ Contributions are welcome! Feel free to raise issues or submit pull requests to 
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Contact
+
+For any queries or support, feel free to reach out to:
+
+**Kavankumar Brahmbhatt**  
+[Email](mailto:kavanbrahmbhatt0910@gmail.com) | [GitHub](https://github.com/KavanBrahmbhatt0910)
