@@ -1,70 +1,119 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Quizzy Application
 
-## Available Scripts
+Quizzy is a **real-time, interactive quiz platform** designed to support thousands of concurrent users. This cloud-native application leverages modern cloud services to ensure scalability, high availability, and low latency.
 
-In the project directory, you can run:
+## Architecture Overview
 
-### `npm start`
+The application is built using **AWS Cloud Architecture** with a focus on resilience, scalability, and security. Below is an overview of the architecture:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Key Components
+1. **Virtual Private Cloud (VPC)**:
+   - **Public Subnets**: For internet-facing components like the **Application Load Balancer (ALB)** and **NAT Gateway**.
+   - **Private Subnets**: For secure deployment of **Auto-Scaling EC2 instances** hosting the application logic.
+   - **Multi-AZ Deployment**: Ensures high availability by spreading resources across multiple availability zones.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+2. **Application Load Balancer (ALB)**:
+   - Distributes incoming traffic to EC2 instances in private subnets.
+   - Ensures fault tolerance and scalability.
 
-### `npm test`
+3. **AWS Lambda**:
+   - Implements serverless functions for various quiz functionalities like `create-quiz`, `get-questions`, `join-quiz`, `submit-answer`, and `send-results`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+4. **API Gateway**:
+   - **REST API Gateway**: Manages API endpoints for client-server communication.
+   - **WebSocket Gateway**: Enables real-time communication for quiz sessions.
 
-### `npm run build`
+5. **AWS DynamoDB**:
+   - NoSQL database to store quiz data with high performance and scalability.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+6. **Amazon Simple Notification Service (SNS)**:
+   - Used for sending notifications or updates to users.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+7. **AWS Backup**:
+   - Automates daily backups of DynamoDB to ensure data durability and recovery.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+8. **NAT Gateway**:
+   - Allows private subnet instances to access the internet securely.
 
-### `npm run eject`
+## Features
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- **Real-time Quiz Interaction**:
+  - WebSocket-based communication for instant updates.
+  - Supports 2,000+ concurrent users with sub-100ms latency.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- **Scalability and Fault Tolerance**:
+  - Auto-scaling EC2 instances ensure seamless performance during traffic spikes.
+  - Multi-AZ deployment ensures application uptime even during failures.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- **Secure Cloud Design**:
+  - Resources are deployed in private subnets for enhanced security.
+  - IAM policies and security groups restrict access to resources.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- **Data Backup**:
+  - Daily backups of quiz data in DynamoDB using AWS Backup.
 
-## Learn More
+## Technologies Used
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Backend:
+- **AWS Services**: Lambda, API Gateway, DynamoDB, EC2, VPC, SNS, S3, CloudFormation.
+- **WebSocket**: For real-time communication.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Frontend:
+- **React**: Client-side application to interact with APIs and render quizzes.
 
-### Code Splitting
+### DevOps:
+- **Jenkins**: For CI/CD pipelines.
+- **Docker**: Containerized deployment.
+- **Terraform**: Infrastructure as Code.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Programming Languages:
+- **Java**, **Python**, **JavaScript**.
 
-### Analyzing the Bundle Size
+## Prerequisites
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+To run the application, ensure you have the following:
+- AWS account with necessary IAM permissions.
+- Jenkins for CI/CD pipeline.
+- Docker installed locally.
 
-### Making a Progressive Web App
+## Setup and Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/your-repo/quizzy.git
+   cd quizzy
+   ```
 
-### Advanced Configuration
+2. **Infrastructure Deployment**:
+   - Use the provided CloudFormation templates to deploy the AWS architecture.
+   - Alternatively, use Terraform for Infrastructure as Code.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+3. **Backend Setup**:
+   - Deploy AWS Lambda functions for quiz operations.
+   - Configure API Gateway and WebSocket Gateway.
 
-### Deployment
+4. **Frontend Setup**:
+   - Build the React application.
+   - Deploy the application to an S3 bucket or host on EC2 instances.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+5. **CI/CD Pipeline**:
+   - Configure Jenkins pipelines for automated builds and deployments.
 
-### `npm run build` fails to minify
+## Usage
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1. Access the application through the provided **Application Load Balancer URL**.
+2. Create or join a quiz session in real-time.
+3. Monitor quiz results and notifications.
+
+## Diagram
+
+![Architecture Diagram](./cloud_final_architecture.png)
+
+## Contributing
+
+Contributions are welcome! Feel free to raise issues or submit pull requests to improve the application.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
