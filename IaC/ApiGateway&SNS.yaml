@@ -1,0 +1,479 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for Quiz App Infrastructure
+
+Resources:
+
+  ### Lambda Functions ###
+  GetQuestionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetQuestionFunction
+      Runtime: python3.11
+      Handler: getQuestion.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/getQuestion.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+    
+  CreateQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateQuizFunction
+      Runtime: python3.11
+      Handler: createQuiz.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/createQuiz.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  JoinQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: JoinQuizFunction
+      Runtime: python3.11
+      Handler: joinQuiz.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/joinQuiz.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  SubmitAnswerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SubmitAnswerFunction
+      Runtime: python3.11
+      Handler: submitAnswer.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/submitAnswer.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  SendMailLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SendMailFunction
+      Runtime: python3.11
+      Handler: sendMail.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/sendMail.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:590183793287:quizzy.fifo
+
+
+
+  ### API Gateway ###
+  QuizzyApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: quizzy-api
+      Description: API Gateway for Quiz App
+      FailOnWarnings: true
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ### API Resources ###
+  GetQuestionApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: get-question
+      RestApiId: !Ref QuizzyApi
+    DependsOn: QuizzyApi
+  
+  CreateQuizApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: create-quiz
+      RestApiId: !Ref QuizzyApi
+    DependsOn: QuizzyApi
+  
+  JoinQuizApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: join-quiz
+      RestApiId: !Ref QuizzyApi
+    DependsOn: QuizzyApi
+  
+  SubmitAnswerApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: submit-answer
+      RestApiId: !Ref QuizzyApi
+    DependsOn: QuizzyApi
+  
+  SendMailApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: send-mail
+      RestApiId: !Ref QuizzyApi
+    DependsOn: QuizzyApi
+
+  ### API Methods ###
+  GetQuestionMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref GetQuestionApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetQuestionLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+    
+  CreateQuizMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref CreateQuizApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateQuizLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+            method.response.header.Access-Control-Allow-Credentials: "'true'"
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+    
+  JoinQuizMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref JoinQuizApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JoinQuizLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+            method.response.header.Access-Control-Allow-Credentials: "'true'"
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+
+
+  SubmitAnswerMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref SubmitAnswerApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SubmitAnswerLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+            method.response.header.Access-Control-Allow-Credentials: "'true'"
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+
+
+  SendMailMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref SendMailApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMailLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+            method.response.header.Access-Control-Allow-Credentials: "'true'"
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+
+  #CORS Methods
+  GetQuestionOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref GetQuestionApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: OPTIONS
+        Type: MOCK
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+    
+  CreateQuizOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref CreateQuizApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: OPTIONS
+        Type: MOCK
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+    
+  JoinQuizOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref JoinQuizApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: OPTIONS
+        Type: MOCK
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+
+  SubmitAnswerOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref SubmitAnswerApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: OPTIONS
+        Type: MOCK
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  SendMailOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref SendMailApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: OPTIONS
+        Type: MOCK
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,POST'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  
+  LambdaApiInvokePermissionForGetQuestionApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetQuestionLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForCreateQuizApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateQuizLambda
+      Principal: apigateway.amazonaws.com
+
+  LambdaApiInvokePermissionForJoinQuizApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref JoinQuizLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForSubmitAnswerApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SubmitAnswerLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForSendMailApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SendMailLambda
+      Principal: apigateway.amazonaws.com
+
+  ### API Gateway Deployment ###
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetQuestionMethod
+      - CreateQuizMethod
+      - JoinQuizMethod
+      - SubmitAnswerMethod
+      - SendMailMethod
+      - GetQuestionOptionsMethod
+      - CreateQuizOptionsMethod
+      - JoinQuizOptionsMethod
+      - SubmitAnswerOptionsMethod
+      - SendMailOptionsMethod
+    Properties:
+      RestApiId: !Ref QuizzyApi
+
+  ### API Gateway Stage ###
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: production
+      RestApiId: !Ref QuizzyApi
+      DeploymentId: !Ref ApiGatewayDeployment
+  
+

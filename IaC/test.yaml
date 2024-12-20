@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for Quiz App Infrastructure
+
+Resources:
+
+  ### Lambda Functions ###
+  GetQuestionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetQuestionFunction
+      Runtime: python3.11
+      Handler: getQuestion.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/getQuestion.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+    
+  CreateQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateQuizFunction
+      Runtime: python3.11
+      Handler: createQuiz.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/createQuiz.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  JoinQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: JoinQuizFunction
+      Runtime: python3.11
+      Handler: joinQuiz.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/joinQuiz.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  SubmitAnswerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SubmitAnswerFunction
+      Runtime: python3.11
+      Handler: submitAnswer.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/submitAnswer.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+  
+  SendMailLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SendMailFunction
+      Runtime: python3.11
+      Handler: sendMail.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-news
+        S3Key: code/sendMail.zip
+      Role: arn:aws:iam::590183793287:role/LabRole
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:590183793287:quizzy

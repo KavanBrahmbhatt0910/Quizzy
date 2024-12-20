@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for WebSocketConnections and RoomQuizzes DynamoDB Tables with Backup
+
+Resources:
+
+  ### DynamoDB Table: WebSocketConnections ###
+  WebSocketConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: WebSocketConnections
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: roomCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH  # Partition key
+        - AttributeName: roomCode
+          KeyType: RANGE # Sort key
+      GlobalSecondaryIndexes:
+        - IndexName: RoomCodeIndex
+          KeySchema:
+            - AttributeName: roomCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ### DynamoDB Table: RoomQuizzes ###
+  RoomQuizzesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: RoomQuizzes
+      AttributeDefinitions:
+        - AttributeName: roomCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomCode
+          KeyType: HASH # Partition key
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ### Backup Vault ###
+  BackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: DynamoDBBackupVault
+
+  ### Backup Plan ###
+  BackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: DailyBackupPlan
+        BackupPlanRule:
+        - RuleName: DailyBackup
+          TargetBackupVault: !Ref BackupVault
+          ScheduleExpression: "cron(0 12 * * ? *)"
+          StartWindowMinutes: 60
+          CompletionWindowMinutes: 180
+          Lifecycle:
+            MoveToColdStorageAfterDays: 30
+            DeleteAfterDays: 365
+
+  ### Backup Selection for WebSocketConnections Table ###
+  WebSocketConnectionsBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: web-socket-connections-backup-selection
+        IamRoleArn: arn:aws:iam::590183793287:role/LabRole
+        Resources:
+          - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${WebSocketConnectionsTable}
+
+  ### Backup Selection for RoomQuizzes Table ###
+  RoomQuizzesBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: room-quizzes-backup-selection
+        IamRoleArn: arn:aws:iam::590183793287:role/LabRole
+        Resources:
+          - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RoomQuizzesTable}
+
+Outputs:
+  WebSocketConnectionsTableName:
+    Value: !Ref WebSocketConnectionsTable
+    Description: Name of the WebSocketConnections table
+
+  RoomQuizzesTableName:
+    Value: !Ref RoomQuizzesTable
+    Description: Name of the RoomQuizzes table
+
+  BackupVaultName:
+    Value: !Ref BackupVault
+    Description: The name of the backup vault for DynamoDB backups

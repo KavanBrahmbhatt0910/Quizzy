@@ -1,0 +1,806 @@
+# File: /mnt/data/ApiGateway&SNS.yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for Quiz App Infrastructure
+
+Resources:
+  ### SNS Topic ###
+  QuizResultSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: QuizzyNotificationTopic
+
+  ### Lambda Functions ###
+  GetQuestionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetQuestionFunction
+      Runtime: python3.11
+      Handler: getQuestion.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/getQuestion.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+    
+  CreateQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateQuizFunction
+      Runtime: python3.11
+      Handler: createQuiz.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/createQuiz.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+  
+  SubmitAnswerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SubmitAnswerFunction
+      Runtime: python3.11
+      Handler: submitAnswer.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/submitAnswer.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+  
+  SendMailLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SendMailFunction
+      Runtime: python3.11
+      Handler: sendMail.lambda_handler
+      Timeout: 30
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/sendMail.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref QuizResultSNSTopic
+
+
+
+  ### API Gateway ###
+  QuizzyApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: quizzy-api
+      Description: API Gateway for Quiz App
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ### API Resources ###
+  GetQuestionApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: get-question
+      RestApiId: !Ref QuizzyApi
+  
+  CreateQuizApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: create-quiz
+      RestApiId: !Ref QuizzyApi
+  
+  SubmitAnswerApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: submit-answer
+      RestApiId: !Ref QuizzyApi
+  
+  SendMailApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt QuizzyApi.RootResourceId
+      PathPart: send-mail
+      RestApiId: !Ref QuizzyApi
+
+  ### API Methods ###
+  GetQuestionMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref GetQuestionApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetQuestionLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+    
+  CreateQuizMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref CreateQuizApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateQuizLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+
+  SubmitAnswerMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref SubmitAnswerApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SubmitAnswerLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+
+  SendMailMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref SendMailApiResource
+      RestApiId: !Ref QuizzyApi
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMailLambda.Arn}/invocations
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: |
+            {
+              "body": $input.json('$')
+            }
+      MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Credentials: true
+          method.response.header.Access-Control-Allow-Origin: true
+          method.response.header.Access-Control-Allow-Headers: true
+  
+  LambdaApiInvokePermissionForGetQuestionApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetQuestionLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForCreateQuizApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateQuizLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForSubmitAnswerApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SubmitAnswerLambda
+      Principal: apigateway.amazonaws.com
+  
+  LambdaApiInvokePermissionForSendMailApiMethod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SendMailLambda
+      Principal: apigateway.amazonaws.com
+
+  ### CORS Configuration ###
+  GetQuestionOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      RestApiId: !Ref QuizzyApi
+      ResourceId: !Ref GetQuestionApiResource
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+    
+  CreateQuizOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      RestApiId: !Ref QuizzyApi
+      ResourceId: !Ref CreateQuizApiResource
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+    
+  SubmitAnswerOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      RestApiId: !Ref QuizzyApi
+      ResourceId: !Ref SubmitAnswerApiResource
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  SendMailOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      RestApiId: !Ref QuizzyApi
+      ResourceId: !Ref SendMailApiResource
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Headers: true
+
+  ### API Gateway Deployment ###
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetQuestionMethod
+      - CreateQuizMethod
+      - SubmitAnswerMethod
+      - SendMailMethod
+      - GetQuestionOptionsMethod
+      - CreateQuizOptionsMethod
+      - SubmitAnswerOptionsMethod
+      - SendMailOptionsMethod
+    Properties:
+      RestApiId: !Ref QuizzyApi
+
+  ### API Gateway Stage ###
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: production
+      RestApiId: !Ref QuizzyApi
+      DeploymentId: !Ref ApiGatewayDeployment
+  
+
+  ### DynamoDB Table: WebSocketConnections ###
+  WebSocketConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: WebSocketConnections
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: roomCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomCode
+          KeyType: HASH # Partition key
+        - AttributeName: connectionId
+          KeyType: HASH # Sort key
+      GlobalSecondaryIndexes:
+        - IndexName: RoomCodeIndex
+          KeySchema:
+            - AttributeName: roomCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ### DynamoDB Table: RoomQuizzes ###
+  RoomQuizzesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: RoomQuizzes
+      AttributeDefinitions:
+        - AttributeName: roomCode
+          AttributeType: S
+        - AttributeName: questionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomCode
+          KeyType: HASH # Partition key
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+Outputs:
+  WebSocketConnectionsTableName:
+    Value: !Ref WebSocketConnectionsTable
+    Description: Name of the WebSocketConnections table
+
+  RoomQuizzesTableName:
+    Value: !Ref RoomQuizzesTable
+    Description: Name of the RoomQuizzes table
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${QuizzyApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+    Description: The base URL for the Quizzy API Gateway
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for WebSocketConnections and RoomQuizzes DynamoDB Tables with Backup
+
+Resources:
+
+  ### DynamoDB Table: WebSocketConnections ###
+  WebSocketConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: WebSocketConnections
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: roomCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomCode
+          KeyType: HASH # Partition key
+        - AttributeName: connectionId
+          KeyType: RANGE # Sort key
+      GlobalSecondaryIndexes:
+        - IndexName: RoomCodeIndex
+          KeySchema:
+            - AttributeName: roomCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ### DynamoDB Table: RoomQuizzes ###
+  RoomQuizzesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: RoomQuizzes
+      AttributeDefinitions:
+        - AttributeName: roomCode
+          AttributeType: S
+        - AttributeName: questionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomCode
+          KeyType: HASH # Partition key
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ### Backup Vault ###
+  BackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: DynamoDBBackupVault
+      EncryptionKeyArn: arn:aws:kms:YOUR_REGION:YOUR_ACCOUNT_ID:key/YOUR_KEY_ID
+
+  ### Backup Plan ###
+  BackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: DynamoDBBackupPlan
+        Rules:
+          - RuleName: DailyBackup
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: cron(0 12 * * ? *) # Daily at noon UTC
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 120
+            Lifecycle:
+              Delete:
+                Days: 30 # Retain backups for 30 days
+            RecoveryPointTags:
+              BackupType: "Daily"
+
+  ### Backup Selection for WebSocketConnections Table ###
+  WebSocketConnectionsBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: WebSocketConnectionsBackupSelection
+        IamRoleArn: arn:aws:iam::YOUR_ACCOUNT_ID:role/AWSBackupDefaultServiceRole
+        Resources:
+          - !Ref WebSocketConnectionsTable
+
+  ### Backup Selection for RoomQuizzes Table ###
+  RoomQuizzesBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: RoomQuizzesBackupSelection
+        IamRoleArn: arn:aws:iam::YOUR_ACCOUNT_ID:role/AWSBackupDefaultServiceRole
+        Resources:
+          - !Ref RoomQuizzesTable
+
+Outputs:
+  WebSocketConnectionsTableName:
+    Value: !Ref WebSocketConnectionsTable
+    Description: Name of the WebSocketConnections table
+
+  RoomQuizzesTableName:
+    Value: !Ref RoomQuizzesTable
+    Description: Name of the RoomQuizzes table
+
+  BackupVaultName:
+    Value: !Ref BackupVault
+    Description: The name of the backup vault for DynamoDB backups
+
+
+# File: /mnt/data/EC2.yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for deploying frontend on EC2 using Docker with Elastic IP
+
+Resources:
+
+  ### VPC ###
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: QuizzyVPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: QuizzyIGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  ### Security Group ###
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0 # Allow HTTP traffic from anywhere
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 # Allow SSH traffic from anywhere (restrict this in production)
+
+  ### Elastic IP ###
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  ### EC2 Instance ###
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      KeyName: vockey # Replace with your key pair name
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      SubnetId: !Ref PublicSubnet
+      ImageId: ami-0453ec754f44f9a4a # Amazon Linux 2 AMI (Update for your region)
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo yum update -y
+          sudo yum install -y docker
+          sudo service docker start
+          sudo usermod -a -G docker ec2-user
+          sudo chmod 666 /var/run/docker.sock
+          docker pull kavan0910/quizzy-image-frontend-test  
+          docker run -d -p 80:3000 \
+            -e REACT_APP_BASE_URL=https://cxf7otw512.execute-api.us-east-1.amazonaws.com/production \
+            -e REACT_APP_SOCKET_URL=wss://tj0x3odjk6.execute-api.us-east-1.amazonaws.com/production \
+            kavan0910/quizzy-image-frontend-test
+
+  ### Associate Elastic IP to EC2 Instance ###
+  ElasticIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      EIP: !Ref ElasticIP
+
+Outputs:
+  EC2ElasticIP:
+    Value: !Ref ElasticIP
+    Description: Elastic IP attached to the EC2 instance
+
+  EC2InstanceURL:
+    Value: !Sub "http://${ElasticIP}"
+    Description: URL to access the frontend
+
+
+# File: /mnt/data/WebSocket.yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation for WebSocket Lambda Functions and WebSocket API Gateway
+
+Resources:
+
+  ### WebSocket API Gateway ###
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: QuizzyWebSocketApi
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+
+  ### Lambda Functions ###
+  ConnectLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: WebSocketConnectFunction
+      Runtime: python3.11
+      Handler: connectSocket.lambda_handler
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/connectSocket.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+      Environment:
+        Variables:
+          WEBSOCKET_API_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+
+  DisconnectLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: WebSocketDisconnectFunction
+      Runtime: python3.11
+      Handler: disconnectSocket.lambda_handler
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/disconnectSocket.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+      Environment:
+        Variables:
+          WEBSOCKET_API_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+
+  ScoreUpdateLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ScoreUpdateFunction
+      Runtime: python3.11
+      Handler: scoreUpdate.lambda_handler
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/scoreUpdate.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+      Environment:
+        Variables:
+          WEBSOCKET_API_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+
+  StartQuizLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: StartQuizFunction
+      Runtime: python3.11
+      Handler: startQuiz.lambda_handler
+      Code:
+        S3Bucket: lambda-code-files-new
+        S3Key: code/startQuiz.zip
+      Role: arn:aws:iam::637423274280:role/LabRole
+      Environment:
+        Variables:
+          WEBSOCKET_API_URL: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+
+  ### WebSocket API Gateway Routes ###
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $connect
+      Target: !Sub "integrations/${ConnectIntegration}"
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $disconnect
+      Target: !Sub "integrations/${DisconnectIntegration}"
+
+  ScoreUpdateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: scoreUpdate
+      Target: !Sub "integrations/${ScoreUpdateIntegration}"
+
+  StartQuizRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: startQuiz
+      Target: !Sub "integrations/${StartQuizIntegration}"
+
+  ### Lambda Integrations ###
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectLambda.Arn}/invocations"
+
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectLambda.Arn}/invocations"
+
+  ScoreUpdateIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ScoreUpdateLambda.Arn}/invocations"
+
+  StartQuizIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StartQuizLambda.Arn}/invocations"
+
+  ### API Deployment ###
+  WebSocketDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    Properties:
+      ApiId: !Ref WebSocketApi
+    DependsOn:
+      - ConnectRoute
+      - DisconnectRoute
+      - ScoreUpdateRoute
+      - StartQuizRoute
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: production
+      DeploymentId: !Ref WebSocketDeployment
+
+Outputs:
+  WebSocketApiUrl:
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/production"
+    Description: WebSocket API Gateway URL
+
+
