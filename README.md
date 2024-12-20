@@ -108,7 +108,7 @@ To run the application, ensure you have the following:
 
 ## Diagram
 
-![Architecture Diagram](./cloud_final_architecture.png)
+![Architecture Diagram](./images/cloud_final_architecture.png)
 
 ## Contributing
 
